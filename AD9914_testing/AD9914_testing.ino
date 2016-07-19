@@ -20,19 +20,33 @@
 AD9914 DDS(CSPIN, RESETPIN, IO_UPDATEPIN, PS0PIN, PS1PIN, PS2PIN, OSKPIN);
 
 void setup() {
+  delay(100);
   SPI.begin();
   SPI.setClockDivider(4);
   SPI.setDataMode(SPI_MODE0);
   SPI.setBitOrder(MSBFIRST);
 
   DDS.initialize(3500000000);
+  DDS.enableProfileMode();
+  DDS.setFreq(90000000,0);
+  DDS.setFreq(91000000,1);
+  DDS.setFreq(92000000,2);
+  DDS.setFreq(93000000,3);
+  DDS.setFreq(94000000,4);
+  DDS.setFreq(95000000,5);
+  DDS.setFreq(96000000,6);
+  DDS.setFreq(5000000,7);
+  DDS.selectProfile(0);
+  //DDS.disableSyncClck();
+  //power usage: 370 mA at 1.8V, 600mA at 3.3V
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  DDS.disableSyncClck();
-  delay(5000);
-  DDS.enableSyncClck();
-  delay(5000);
+ 
+ for (int i = 0 ; i < 8 ; i++) {
+   DDS.selectProfile(i);
+   delay(1);
+ }
 
 }

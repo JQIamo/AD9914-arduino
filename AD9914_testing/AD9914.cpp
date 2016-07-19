@@ -64,6 +64,8 @@ void AD9914::initialize(unsigned long refClk){
 
     AD9914::reset();
     
+    delay(100);
+    
     _profileModeOn = false; //profile mode is disabled by default
     
     _activeProfile = 0; 
@@ -225,7 +227,7 @@ boolean AD9914::getProfileSelectMode() {
 void AD9914::enableSyncClck() {
  //write 0x01, byte 11 high 
   byte registerInfo[] = {0x01, 4};
-  byte data[] = {0x00, 0x00, 0x09, 0x00};
+  byte data[] = {0x00, 0x80, 0x09, 0x00};
   AD9914::writeRegister(registerInfo, data);
   AD9914::update();
 }
@@ -233,30 +235,30 @@ void AD9914::enableSyncClck() {
 void AD9914::disableSyncClck() {
   //write 0x01, byte 11 low
   byte registerInfo[] = {0x01, 4};
-  byte data[] = {0x00, 0x00, 0x01, 0x00};
+  byte data[] = {0x00, 0x80, 0x01, 0x00};
   AD9914::writeRegister(registerInfo, data);
   AD9914::update();
 }
 
 void AD9914::selectProfile(byte profile){
-  
+  //Possible improvement: write PS pin states all at once using register masks
   _activeProfile = profile;
   
   if (profile > 7) {
     return; //not a valid profile number, return without doing anything
   }
   
-  if ((B00000001 && profile) > 0) { //rightmost bit is 1
+  if ((B00000001 & profile) > 0) { //rightmost bit is 1
       digitalWrite(_ps0, HIGH);
   } else {
       digitalWrite(_ps0,LOW);
   }
-  if ((B00000010 && profile) > 0) { //next bit is 1
+  if ((B00000010 & profile) > 0) { //next bit is 1
       digitalWrite(_ps1, HIGH);
   } else {
       digitalWrite(_ps1,LOW);
   }
-  if ((B00000100 && profile) > 0) { //next bit is 1
+  if ((B00000100 & profile) > 0) { //next bit is 1
       digitalWrite(_ps2, HIGH);
   } else {
       digitalWrite(_ps2,LOW);
@@ -298,8 +300,8 @@ void AD9914::dacCalibrate(){
   AD9914::writeRegister(registerInfo, data);
   AD9914::update();
   delay(1);
-  data[0] = 0x00;
-  AD9914::writeRegister(registerInfo, data); //write bit low
+  data[0] = 0x00; //write bit low
+  AD9914::writeRegister(registerInfo, data); 
   AD9914::update();
 }
 

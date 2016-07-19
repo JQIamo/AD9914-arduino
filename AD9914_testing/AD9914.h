@@ -23,7 +23,7 @@ class AD9914
 {
     public: 
         // Constructor function. 
-        AD9914( byte, byte, byte, byte, byte, byte, byte);
+        AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, byte ps2, byte osk);
 
         // Initialize with refClk frequency
         void initialize(unsigned long);
@@ -34,7 +34,7 @@ class AD9914
         // Reset the DDS
         void reset();
 
-        // Update the new frequency tuning word
+        // Update to load newly written settings
         void update();
         
         // Gets current frequency
