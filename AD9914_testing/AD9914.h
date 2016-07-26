@@ -53,6 +53,25 @@ class AD9914
         // Sets frequency tuning word
         void setFTW(unsigned long, byte);
         void setFTW(unsigned long);
+        
+        //write scaled amplitude for the selected profile
+        void setAmp(double scaledAmp, byte profile);
+        void setAmp(double scaledAmp);
+        void setAmpdB(double scaledAmpdB, byte profile);
+        void setAmpdB(double scaledAmpdB);
+        
+        // Gets current amplitude
+        double getAmp(byte);
+        double getAmp();
+        
+        // Gets current amplitude in dB
+        double getAmpdB(byte);
+        double getAmpdB();
+        
+        // Gets current amplitude tuning word
+        unsigned long getASF(byte);
+        unsigned long getASF();
+        
 
         // places DDS in linear sweep mode
         //void linearSweep(unsigned long, unsigned long, unsigned long, byte, unsigned long, byte);
@@ -63,8 +82,17 @@ class AD9914
         //disable profile mode
         void disableProfileMode();
         
+        //enable OSK
+        void enableOSK();
+        
+        //disable OSK
+        void disableOSK();
+        
         //Get profile mode status
         boolean getProfileSelectMode();
+        
+        //Get OSK mode status
+        boolean getOSKMode();
 
         //enable the Sync Clck output
         void enableSyncClck();
@@ -89,12 +117,13 @@ class AD9914
 
         // Instance variables for frequency _freq, frequency tuning word _ftw,
         // reference clock frequency _refClk, etc.
-        unsigned long _freq[8], _ftw[8], _refClk, _refIn;
+        unsigned long _freq[8], _ftw[8], _refClk, _refIn, _asf[8];
+        double _scaledAmp[8], _scaledAmpdB[8];
         
         byte _activeProfile;
         
         // Instance variables to keep track of the DDS mode:
-        boolean _profileModeOn;
+        boolean _profileModeOn, _OSKon;
 
 
         // function to write data to register. 
@@ -102,7 +131,9 @@ class AD9914
         
         // function to toggle the DAC CAL register bit and calibrate the DAC
         void dacCalibrate();
-
+        
+        // write amplitude tuning word to device
+        void writeAmp(long ampScaleFactor, byte profile);
 
         // DDS frequency resolution
          double RESOLUTION;// = 4294967296; // sets resolution to 2^32 = 32 bits. Using type double to avoid confusion with integer division...

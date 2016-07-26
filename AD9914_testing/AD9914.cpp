@@ -18,6 +18,7 @@
 #include "Arduino.h"
 #include "SPI.h"
 #include "AD9914.h"
+#include <math.h>
 
 
 /* CONSTRUCTOR */
@@ -67,6 +68,7 @@ void AD9914::initialize(unsigned long refClk){
     delay(100);
     
     _profileModeOn = false; //profile mode is disabled by default
+    _OSKon = false; //OSK is disabled by default
     
     _activeProfile = 0; 
     
@@ -147,6 +149,79 @@ void AD9914::setFreq(unsigned long freq){
    AD9914::setFreq(freq,0); 
 }
 
+void AD9914::setAmp(double scaledAmp, byte profile){
+   if (profile > 7) {
+        return; //invalid profile, return without doing anything
+   } 
+   
+   _scaledAmp[profile] = scaledAmp;
+   _asf[profile] = round(scaledAmp*4096);
+   _scaledAmpdB[profile] = 20.0*log10(_asf[profile]/4096.0);
+   
+   if (_asf[profile] >= 4096) {
+      _asf[profile]=4095; //write max value
+   } else if (scaledAmp < 0) {
+      _asf[profile]=0; //write min value
+   }
+   
+   AD9914::writeAmp(_asf[profile],profile);
+
+}
+       
+void AD9914::setAmp(double scaledAmp){
+  AD9914::setAmp(scaledAmp,0);
+}
+
+void AD9914::setAmpdB(double scaledAmpdB, byte profile){
+  if (profile > 7) {
+        return; //invalid profile, return without doing anything
+   } 
+   
+   if (scaledAmpdB > 0) {
+       return; //only valid for attenuation, so dB should be less than 0, return without doing anything
+   }
+   
+   _scaledAmpdB[profile] = scaledAmpdB;
+   _asf[profile] = round(pow(10,scaledAmpdB/20.0)*4096.0);
+   _scaledAmp[profile] = _asf[profile]/4096.0;
+   
+   if (_asf[profile] >= 4096) {
+      _asf[profile]=4095; //write max value
+   }
+   
+   AD9914::writeAmp(_asf[profile],profile);
+   
+}
+
+void AD9914::setAmpdB(double scaledAmpdB){
+  AD9914::setAmpdB(scaledAmpdB,0);
+}
+
+//Gets current amplitude
+double AD9914::getAmp(byte profile){
+  return _scaledAmp[profile];
+}
+double AD9914::getAmp(){
+  return _scaledAmp[0];
+}
+        
+// Gets current amplitude in dB
+double AD9914::getAmpdB(byte profile){
+  return _scaledAmpdB[profile];
+}
+double AD9914::getAmpdB(){
+  return _scaledAmpdB[0];
+}
+        
+//Gets current amplitude tuning word
+unsigned long AD9914::getASF(byte profile){
+  return _asf[profile];
+}
+unsigned long AD9914::getASF(){
+  return _asf[0];
+}
+
+
 
 // getFreq() - returns current frequency
 unsigned long AD9914::getFreq(byte profile){
@@ -220,8 +295,34 @@ void AD9914::disableProfileMode() {
   AD9914::update();
 }
 
+//enable OSK
+void AD9914::enableOSK(){
+  //write 0x00, byte 8 high
+  _OSKon = true;
+  byte registerInfo[] = {0x00, 4};
+  byte data[] = {0x00, 0x01, 0x01, 0x08};
+  AD9914::writeRegister(registerInfo, data);
+  AD9914::update();
+}
+        
+//disable OSK
+void AD9914::disableOSK(){
+  //write 0x00, byte 8 low
+  _OSKon = false;
+  byte registerInfo[] = {0x00, 4};
+  byte data[] = {0x00, 0x01, 0x00, 0x08};
+  AD9914::writeRegister(registerInfo, data);
+  AD9914::update();
+}
+  
+//return boolean indicating if profile select mode is activated
 boolean AD9914::getProfileSelectMode() {
   return _profileModeOn;
+}
+
+//return boolean indicating if OSK mode is activated
+boolean AD9914::getOSKMode() {
+  return _OSKon;
 }
 
 void AD9914::enableSyncClck() {
@@ -303,5 +404,26 @@ void AD9914::dacCalibrate(){
   data[0] = 0x00; //write bit low
   AD9914::writeRegister(registerInfo, data); 
   AD9914::update();
+}
+
+void AD9914::writeAmp(long ampScaleFactor, byte profile){
+  byte registerInfo[] = {0x0C, 4};
+  
+  registerInfo[0] += 2*profile; //select the right register for the commanded profile number
+  
+  // divide up ASF into two bytes, pad with 0s for the phase offset
+  byte atw[] = {lowByte(ampScaleFactor >> 8), lowByte(ampScaleFactor), 0x00, 0x00};
+  
+  // actually writes to register
+  AD9914::writeRegister(registerInfo, atw);
+  
+  Serial.println(registerInfo[0]);
+  Serial.println(atw[0]);
+  Serial.println(atw[1]);
+  Serial.println(atw[2]);
+  Serial.println(atw[3]);
+  
+  AD9914::update();
+  
 }
 
