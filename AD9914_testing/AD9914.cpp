@@ -417,12 +417,6 @@ void AD9914::writeAmp(long ampScaleFactor, byte profile){
   // actually writes to register
   AD9914::writeRegister(registerInfo, atw);
   
-  Serial.println(registerInfo[0]);
-  Serial.println(atw[0]);
-  Serial.println(atw[1]);
-  Serial.println(atw[2]);
-  Serial.println(atw[3]);
-  
   AD9914::update();
   
 }

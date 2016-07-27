@@ -2,6 +2,10 @@
 #include "AD9914.h"
 #include <ADF4350.h>
 
+//#define MAX_PARAM_NUM 10
+
+#include "SetListArduino.h"
+
 //Define pin mappings:
 #define SYNCIO_PIN 8    
 
@@ -20,6 +24,8 @@
 
 #define PLL_CS_PIN 1
 
+#define SETLIST_TRIGGER 33 //we don't actually want to trigger this device, so specify an unused pin
+
 
 
 
@@ -28,6 +34,9 @@ AD9914 DDS(CSPIN, RESETPIN, IO_UPDATEPIN, PS0PIN, PS1PIN, PS2PIN, OSKPIN);
 
 //Declare the PLL object:
 ADF4350 PLL(PLL_CS_PIN);
+
+//Declare the setlist arduino object:
+SetListArduino SetListImage(SETLIST_TRIGGER);
 
 double amplitudeCorrdB(unsigned long freq){ //freq is in Hz
   if (freq > 1500000000) {
@@ -44,7 +53,7 @@ void setup() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setBitOrder(MSBFIRST);
   
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   PLL.initialize(3500,10); //max PLL setting may be 3 GHz...
   
@@ -72,14 +81,21 @@ void setup() {
   DDS.selectProfile(0);
   //DDS.disableSyncClck();
   //power usage: 370 mA at 1.8V, 600mA at 3.3V
+  
+  SetListImage.registerDevice(DDS, 0);
+  SetListImage.registerCommand("SF",0,setSF);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
- for (int i = 0 ; i < 8 ; i++) {
-   DDS.selectProfile(i);
-   delay(3000);
- }
+  SetListImage.readSerial();
+  
+ //for (int i = 0 ; i < 8 ; i++) {
+ //  DDS.selectProfile(i);
+ //  delay(3000);
+ //}
+ 
+ 
  //DDS.selectProfile(0);
  //DDS.setAmpdB(-3,0);
  //Serial.println(amplitudeCorrdB(25000000));
@@ -87,4 +103,11 @@ void loop() {
 
  //delay(5000);
 
+}
+
+void setSF(AD9914 * DDS, int * params){ //this mode just talks to profile 0
+   unsigned long comFreq = params[0]; //input is desired frequency in MHz
+   comFreq = comFreq*1000000; //convert to Hz
+   DDS->setAmpdB(amplitudeCorrdB(comFreq));
+   DDS->setFreq(comFreq);
 }
