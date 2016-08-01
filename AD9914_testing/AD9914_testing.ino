@@ -2,7 +2,7 @@
 #include "AD9914.h"
 #include <ADF4350.h>
 
-//#define MAX_PARAM_NUM 10
+#define MAX_PARAM_NUM 11
 
 #include "SetListArduino.h"
 
@@ -46,6 +46,12 @@ double amplitudeCorrdB(unsigned long freq){ //freq is in Hz
     return (5.613e-12 * pow(freq/1000000.0,4) - 1.341e-8 * pow(freq/1000000.0,3) + 6.154e-6 * pow(freq/1000000.0,2) + 0.016*freq/1000000.0 - 21.035); //4th order polynomial version
   }
 }
+
+int maxFreqs;
+unsigned long freq[8];
+unsigned long delayMicros;
+
+
 void setup() {
   delay(100);
   SPI.begin();
@@ -62,8 +68,15 @@ void setup() {
   DDS.initialize(3500000000);
   DDS.enableProfileMode();
   DDS.enableOSK();
+  freq[0] = 1190000000;
+  freq[1] = 620000000;
+  freq[2] = 1190000000;
+  freq[3] = 1435000000;
+  maxFreqs = 1;
+  delayMicros = 150;
   
-  unsigned long freq[8] = {25000000, 300000000, 500000000, 600000000, 750000000, 1000000000, 1200000000, 1500000000};
+  //unsigned long freq[8] = {1190000000, 620000000, 1190000000, 1435000000, 1700000000, 1000000000, 1200000000, 1500000000};
+  //unsigned long freq[8] = {1190000000, 1435000000, 1190000000, 620000000, 1700000000, 1000000000, 1200000000, 1500000000};
   for (int i = 0 ; i < 8 ; i++) {
     DDS.setFreq(freq[i],i);
     DDS.setAmpdB(amplitudeCorrdB(freq[i]),i);
@@ -84,16 +97,18 @@ void setup() {
   
   SetListImage.registerDevice(DDS, 0);
   SetListImage.registerCommand("SF",0,setSF);
+  SetListImage.registerCommand("MF",0,setMultiFreq);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   SetListImage.readSerial();
   
- //for (int i = 0 ; i < 8 ; i++) {
- //  DDS.selectProfile(i);
- //  delay(3000);
- //}
+ for (int i = 0 ; i < maxFreqs ; i++) {
+   DDS.selectProfile(i);
+   //delay(1);
+   delayMicroseconds(delayMicros);
+ }
  
  
  //DDS.selectProfile(0);
@@ -110,4 +125,30 @@ void setSF(AD9914 * DDS, int * params){ //this mode just talks to profile 0
    comFreq = comFreq*1000000; //convert to Hz
    DDS->setAmpdB(amplitudeCorrdB(comFreq));
    DDS->setFreq(comFreq);
+}
+
+void setMultiFreq(AD9914 * DDS, int * params){
+  //Need 11 parameters max:
+  //0 - 7; 8 frequencies
+  //8: number of frequencies to use
+  //9: delay time
+  //10: amplitude correction
+  
+  //Define 8 frequencies:
+  //unsigned long freqs[8];
+  for (int i = 0 ; i < 8 ; i++) {
+    freq[i] = params[i]*1000000;
+  }
+  
+  maxFreqs = params[8];
+  delayMicros = params[9];
+  double ampCorr = params[10];
+  
+  for (int i = 0 ; i < 8 ; i++) {
+    DDS->setAmpdB(amplitudeCorrdB(freq[i])-ampCorr,i);
+    DDS->setFreq(freq[i],i);
+ }
+ 
+
+  
 }
