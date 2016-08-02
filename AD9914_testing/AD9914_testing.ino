@@ -43,7 +43,9 @@ double amplitudeCorrdB(unsigned long freq){ //freq is in Hz
     return 0.0;
   } else {
     //return (-20.25 + 0.013*(freq/1000000.0)); //linear version
-    return (5.613e-12 * pow(freq/1000000.0,4) - 1.341e-8 * pow(freq/1000000.0,3) + 6.154e-6 * pow(freq/1000000.0,2) + 0.016*freq/1000000.0 - 21.035); //4th order polynomial version
+    //return (5.613e-12 * pow(freq/1000000.0,4) - 1.341e-8 * pow(freq/1000000.0,3) + 6.154e-6 * pow(freq/1000000.0,2) + 0.016*freq/1000000.0 - 21.035); //4th order polynomial version, smoothes output after AOM driver board
+    return (-3.288e-12 * pow(freq/1000000.0,4) + 1.262e-8 * pow(freq/1000000.0,3) - 1.51e-5 * pow(freq/1000000.0,2) + 7.847e-3*freq/1000000.0 - 4.717); //4th order polynomial version, smoothes output after directional coupler and amplifier to about +28 dBm
+
   }
 }
 
@@ -68,7 +70,8 @@ void setup() {
   DDS.initialize(3500000000);
   DDS.enableProfileMode();
   DDS.enableOSK();
-  freq[0] = 1190000000;
+  //freq[0] = 1190000000;
+  freq[0] = 1500000000;
   freq[1] = 620000000;
   freq[2] = 1190000000;
   freq[3] = 1435000000;
@@ -80,6 +83,7 @@ void setup() {
   for (int i = 0 ; i < 8 ; i++) {
     DDS.setFreq(freq[i],i);
     DDS.setAmpdB(amplitudeCorrdB(freq[i]),i);
+    //DDS.setAmpdB(-4.05,i);
   }
 //  DDS.setFreq(900000000,0);
 //  DDS.setAmpdB(0.0,0);
@@ -108,8 +112,7 @@ void loop() {
    DDS.selectProfile(i);
    //delay(1);
    delayMicroseconds(delayMicros);
- }
- 
+ } 
  
  //DDS.selectProfile(0);
  //DDS.setAmpdB(-3,0);
