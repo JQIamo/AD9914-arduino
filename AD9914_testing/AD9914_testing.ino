@@ -4,25 +4,24 @@
 
 #define MAX_PARAM_NUM 11
 
-#include "SetListArduino.h"
+//#include "SetListArduino.h"
 
-//Define pin mappings:
-#define SYNCIO_PIN 8    
+//Define pin mappings: 
 
-#define CSPIN 14                 // DDS chip select pin. Digital input (active low). Bringing this pin low enables detection of serial clock edges.
-#define OSKPIN 15 //not actually connected               // DDS Output Shift Keying. Digital input.
-#define PS0PIN 5               // DDS PROFILE[0] pin. Profile Select Pins. Digital input. Use these pins to select one of eight profiles for the DDS.
+#define CSPIN 1                 // DDS chip select pin. Digital input (active low). Bringing this pin low enables detection of serial clock edges.
+#define OSKPIN 17              //not actually connected               // DDS Output Shift Keying. Digital input.
+#define PS0PIN 7               // DDS PROFILE[0] pin. Profile Select Pins. Digital input. Use these pins to select one of eight profiles for the DDS.
 #define PS1PIN 6               // DDS PROFILE[1] pin. Profile Select Pins. Digital input. Use these pins to select one of eight profiles for the DDS.
-#define PS2PIN 7               // DDS PROFILE[2] pin. Profile Select Pins. Digital input. Use these pins to select one of eight profiles for the DDS.
-#define IO_UPDATEPIN  9        // DDS I/O_UPDATE pin. Digital input. A high on this pin transfers the contents of the buffers to the internal registers.
+#define PS2PIN 5               // DDS PROFILE[2] pin. Profile Select Pins. Digital input. Use these pins to select one of eight profiles for the DDS.
+#define IO_UPDATEPIN  23        // DDS I/O_UPDATE pin. Digital input. A high on this pin transfers the contents of the buffers to the internal registers.
 #define RESETPIN 10      // DDS MASTER_RESET pin. Digital input. Clears all memory elements and sets registers to default values.
 
-#define SYNCIO_PIN 8
+#define SYNCIO_PIN 22
 #define DROVER 2
-#define DRHOLD 3
-#define DRCTL 4
+#define DRHOLD 9
+#define DRCTL 8
 
-#define PLL_CS_PIN 1
+#define PLL_CS_PIN 14
 
 #define SETLIST_TRIGGER 33 //we don't actually want to trigger this device, so specify an unused pin
 
@@ -36,7 +35,7 @@ AD9914 DDS(CSPIN, RESETPIN, IO_UPDATEPIN, PS0PIN, PS1PIN, PS2PIN, OSKPIN);
 ADF4350 PLL(PLL_CS_PIN);
 
 //Declare the setlist arduino object:
-SetListArduino SetListImage(SETLIST_TRIGGER);
+//SetListArduino SetListImage(SETLIST_TRIGGER);
 
 double amplitudeCorrdB(unsigned long freq){ //freq is in Hz
   if (freq > 1500000000) {
@@ -62,57 +61,52 @@ void setup() {
   SPI.setBitOrder(MSBFIRST);
   
   Serial.begin(115200);
+
+  unsigned long  clockFreq = 3500000000;
   
-  PLL.initialize(3500,10); //max PLL setting may be 3 GHz...
+  PLL.initialize(clockFreq/1000000,10); //max PLL setting may be 3 GHz...
   
   delay(10);
   
-  DDS.initialize(3500000000);
-  DDS.enableProfileMode();
-  DDS.enableOSK();
-  //freq[0] = 1190000000;
-  freq[0] = 1500000000;
-  freq[1] = 620000000;
-  freq[2] = 1190000000;
-  freq[3] = 1435000000;
-  maxFreqs = 1;
-  delayMicros = 150;
+  DDS.initialize(clockFreq);
+  //DDS.enableProfileMode();
+  //DDS.enableOSK();
+  delay(100);
+
+  boolean AutoClearAccumulator = false;
+  boolean DRGoverOutput = false;
+  boolean noDwellHigh = true;
+  boolean noDwellLow = true;
+  double lowerFreq = 1e6;
+  double upperFreq = 10e6;
+
+  double RR = 24.0/clockFreq; //set to minimum value of 6.857 us, change this if clock changes
+  double decrementSS = upperFreq-lowerFreq;
+  double fRamp = 100e3; //ramp rep. rate or comb tooth spacing
+  double incrementSS = fRamp*(upperFreq - lowerFreq)*RR;
   
-  //unsigned long freq[8] = {1190000000, 620000000, 1190000000, 1435000000, 1700000000, 1000000000, 1200000000, 1500000000};
-  //unsigned long freq[8] = {1190000000, 1435000000, 1190000000, 620000000, 1700000000, 1000000000, 1200000000, 1500000000};
-  for (int i = 0 ; i < 8 ; i++) {
-    DDS.setFreq(freq[i],i);
-    DDS.setAmpdB(amplitudeCorrdB(freq[i]),i);
-    //DDS.setAmpdB(-4.05,i);
-  }
-//  DDS.setFreq(900000000,0);
-//  DDS.setAmpdB(0.0,0);
-  //DDS.setAmp(0.1,0);
-  //DDS.setFreq(91000000,1);
-  //DDS.setFreq(92000000,2);
-  //DDS.setFreq(93000000,3);
-  //DDS.setFreq(94000000,4);
-  //DDS.setFreq(95000000,5);
-  //DDS.setFreq(96000000,6);
-  //DDS.setFreq(5000000,7);
-  DDS.selectProfile(0);
-  //DDS.disableSyncClck();
-  //power usage: 370 mA at 1.8V, 600mA at 3.3V
+
   
-  SetListImage.registerDevice(DDS, 0);
-  SetListImage.registerCommand("SF",0,setSF);
-  SetListImage.registerCommand("MF",0,setMultiFreq);
+  DDS.configureRamp(AutoClearAccumulator, DRGoverOutput, noDwellHigh, noDwellLow);
+  DDS.setDRlowerLimit(lowerFreq);
+  DDS.setDRupperLimit(upperFreq);
+  DDS.setDRincrementStepSize(incrementSS);
+  DDS.setDRdecrementStepSize(decrementSS);
+  DDS.setDRrampRate(RR, RR); //set to minimum value
+  DDS.enableDR();
+
+
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  SetListImage.readSerial();
+//  SetListImage.readSerial();
   
- for (int i = 0 ; i < maxFreqs ; i++) {
-   DDS.selectProfile(i);
-   //delay(1);
-   delayMicroseconds(delayMicros);
- } 
+// for (int i = 0 ; i < maxFreqs ; i++) {
+//   DDS.selectProfile(i);
+//   //delay(1);
+//   delayMicroseconds(delayMicros);
+// } 
  
  //DDS.selectProfile(0);
  //DDS.setAmpdB(-3,0);
@@ -121,37 +115,4 @@ void loop() {
 
  //delay(5000);
 
-}
-
-void setSF(AD9914 * DDS, int * params){ //this mode just talks to profile 0
-   unsigned long comFreq = params[0]; //input is desired frequency in MHz
-   comFreq = comFreq*1000000; //convert to Hz
-   DDS->setAmpdB(amplitudeCorrdB(comFreq));
-   DDS->setFreq(comFreq);
-}
-
-void setMultiFreq(AD9914 * DDS, int * params){
-  //Need 11 parameters max:
-  //0 - 7; 8 frequencies
-  //8: number of frequencies to use
-  //9: delay time
-  //10: amplitude correction
-  
-  //Define 8 frequencies:
-  //unsigned long freqs[8];
-  for (int i = 0 ; i < 8 ; i++) {
-    freq[i] = params[i]*1000000;
-  }
-  
-  maxFreqs = params[8];
-  delayMicros = params[9];
-  double ampCorr = params[10];
-  
-  for (int i = 0 ; i < 8 ; i++) {
-    DDS->setAmpdB(amplitudeCorrdB(freq[i])-ampCorr,i);
-    DDS->setFreq(freq[i],i);
- }
- 
-
-  
 }

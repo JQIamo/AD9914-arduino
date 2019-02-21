@@ -95,10 +95,10 @@ class AD9914
         boolean getOSKMode();
 
         //enable the Sync Clck output
-        void enableSyncClck();
+       // void enableSyncClck(); //comment out to avoid conflict with configuring DR
 
         //disable the Sync Clck output
-        void disableSyncClck();
+       // void disableSyncClck(); //comment out to avoid conflict with configuring DR
         
         //Change active profile mode:
         void selectProfile(byte);
@@ -106,6 +106,53 @@ class AD9914
         //Get currently active profile
         byte getProfile();
         
+        ///new:
+
+        //sets digital ramp lower limit
+        void setDRlowerLimit(double);
+
+        //get digital ramp lower limit
+        double getDRlowerlimit();
+
+        //sets digital ramp upper limit
+        void setDRupperLimit(double);
+
+        //get digital ramp upper limit
+        double getDRupperLimit();
+
+        //sets digital ramp increment step size
+        void setDRincrementStepSize(double);
+
+        //get digital ramp increment step size
+        double getDRincrementStepSize();
+
+        //sets digital ramp decrement step size
+        void setDRdecrementStepSize(double);
+
+        //get digital ramp decrement step size
+        double getDRdecrementStepSize();
+
+        //sets digital ramp rate (rising and falling)
+        void setDRrampRate(double, double);
+
+        //get digital ramp rising rate
+        double getDRpositiveSlopeRate();
+
+        //get digital ramp falling rate
+        double getDRnegativeSlopeRate();
+
+        //configure digital ramp
+        void configureRamp(boolean AutoClearAccumulator, boolean DRGoverOutput, boolean noDwellHigh, boolean noDwellLow);
+
+        //enable digital ramp
+        void enableDR();
+
+        //disable digital ramp
+        void disableDR();
+
+        //get digital ramp mode status
+        boolean getDRmode();
+
         
         
 
@@ -118,12 +165,14 @@ class AD9914
         // Instance variables for frequency _freq, frequency tuning word _ftw,
         // reference clock frequency _refClk, etc.
         unsigned long _freq[8], _ftw[8], _refClk, _refIn, _asf[8];
+        double _DRlowerLimit, _DRupperLimit, _DRincrementStepSize, _DRdecrementStepSize, _DRpositiveSlopeRate, _DRnegativeSlopeRate; //new
         double _scaledAmp[8], _scaledAmpdB[8];
         
         byte _activeProfile;
         
         // Instance variables to keep track of the DDS mode:
         boolean _profileModeOn, _OSKon;
+        boolean _AutoclearDRAccumulatorOn, _DRGoverOutputOn, _DRon, _DRnoDwellHighOn, _DRnoDwellLowOn;//new
 
 
         // function to write data to register. 
@@ -134,6 +183,9 @@ class AD9914
         
         // write amplitude tuning word to device
         void writeAmp(long ampScaleFactor, byte profile);
+
+        // function to update Control Function Register 2, which dictates many functions related to the digital ramp and enables profile mode
+        void updateRegister2();
 
         // DDS frequency resolution
          double RESOLUTION;// = 4294967296; // sets resolution to 2^32 = 32 bits. Using type double to avoid confusion with integer division...
