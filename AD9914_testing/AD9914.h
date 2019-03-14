@@ -112,7 +112,7 @@ class AD9914
         void setDRlowerLimit(double);
 
         //get digital ramp lower limit
-        double getDRlowerlimit();
+        double getDRlowerLimit();
 
         //sets digital ramp upper limit
         void setDRupperLimit(double);
@@ -142,7 +142,14 @@ class AD9914
         double getDRnegativeSlopeRate();
 
         //configure digital ramp
-        void configureRamp(boolean AutoClearAccumulator, boolean DRGoverOutput, boolean noDwellHigh, boolean noDwellLow);
+        void configureRamp(boolean AutoClearAccumulator, boolean AutoclearPhase, boolean DRGoverOutput, boolean noDwellHigh, boolean noDwellLow);
+
+        //get digital ramp settings
+        boolean getAutoclearAccumulatorOn();
+        boolean getAutoclearPhaseOn();
+        boolean getDRGoverOutputOn();
+        boolean getDRnoDwellHighOn();
+        boolean getDRnoDwellLowOn();
 
         //enable digital ramp
         void enableDR();
@@ -153,6 +160,15 @@ class AD9914
         //get digital ramp mode status
         boolean getDRmode();
 
+        //enable device
+        void enableDDS();
+
+        //disable device
+        void disableDDS();
+
+        // function to toggle the DAC CAL register bit and calibrate the DAC
+        void dacCalibrate();
+
         
         
 
@@ -160,7 +176,7 @@ class AD9914
     private:
         // Instance variables that hold pinout mapping
         // from arduino to DDS pins.
-        byte _ssPin, _resetPin, _updatePin, _ps0, _ps1, _ps2, _osk;
+        byte _ssPin, _resetPin, _updatePin, _ps0, _ps1, _ps2, _powerDownPin;
 
         // Instance variables for frequency _freq, frequency tuning word _ftw,
         // reference clock frequency _refClk, etc.
@@ -171,18 +187,20 @@ class AD9914
         byte _activeProfile;
         
         // Instance variables to keep track of the DDS mode:
-        boolean _profileModeOn, _OSKon;
-        boolean _AutoclearDRAccumulatorOn, _DRGoverOutputOn, _DRon, _DRnoDwellHighOn, _DRnoDwellLowOn;//new
+        boolean _profileModeOn, _OSKon, _disable;
+        boolean _AutoclearDRAccumulatorOn, _AutoclearPhaseOn, _DRGoverOutputOn, _DRon, _DRnoDwellHighOn, _DRnoDwellLowOn;//new
 
 
         // function to write data to register. 
         void writeRegister(byte[2], byte[1024]);
         
-        // function to toggle the DAC CAL register bit and calibrate the DAC
-        void dacCalibrate();
+        
         
         // write amplitude tuning word to device
         void writeAmp(long ampScaleFactor, byte profile);
+
+        // function to update Control Function Register 1, which controls many configuration settings
+        void updateRegister1();
 
         // function to update Control Function Register 2, which dictates many functions related to the digital ramp and enables profile mode
         void updateRegister2();

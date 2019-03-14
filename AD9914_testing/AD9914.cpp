@@ -24,7 +24,7 @@
 /* CONSTRUCTOR */
 
 // Constructor function; initializes communication pinouts
-AD9914::AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, byte ps2, byte osk) //Master_reset pin?
+AD9914::AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, byte ps2, byte powerDownPin) //Master_reset pin?
 {
   RESOLUTION  = 4294967296.0;
   _ssPin = ssPin;
@@ -33,17 +33,17 @@ AD9914::AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, by
   _ps0 = ps0;
   _ps1 = ps1;
   _ps2 = ps2;
-  _osk = osk;
+  _powerDownPin = powerDownPin;
 
 
   // sets up the pinmodes for output
   pinMode(_ssPin, OUTPUT);
   pinMode(_resetPin, OUTPUT);
   pinMode(_updatePin, OUTPUT);
-  pinMode(_ps0, OUTPUT);
-  pinMode(_ps1, OUTPUT);
-  pinMode(_ps2, OUTPUT);
-  pinMode(_osk, OUTPUT);
+  //pinMode(_ps0, OUTPUT); //temporarily comment out these lines since P205 jumper on eval board will have ot be enables to buffer DROVR signal
+  //pinMode(_ps1, OUTPUT);
+ // pinMode(_ps2, OUTPUT);
+  pinMode(_powerDownPin, OUTPUT);
 
   // defaults for pin logic levels
   digitalWrite(_ssPin, HIGH);
@@ -52,7 +52,7 @@ AD9914::AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, by
   digitalWrite(_ps0, LOW);
   digitalWrite(_ps1, LOW);
   digitalWrite(_ps2, LOW);
-  digitalWrite(_osk, LOW);
+  digitalWrite(_powerDownPin, LOW);
 }
 
 /* PUBLIC CLASS FUNCTIONS */
@@ -69,9 +69,11 @@ void AD9914::initialize(unsigned long refClk) {
 
   _profileModeOn = false; //profile mode is disabled by default
   _OSKon = false; //OSK is disabled by default
+  _disable = false; //power down pin low by default
 
   //Digital Ramp settings all false by default:
   _AutoclearDRAccumulatorOn = false;
+  _AutoclearPhaseOn = false;
   _DRGoverOutputOn = false;
   _DRon = false;
   _DRnoDwellHighOn = false;
@@ -100,7 +102,7 @@ void AD9914::reset() {
 //      newly set frequency (FTW0)
 void AD9914::update() {
   digitalWrite(_updatePin, HIGH);
-  delay(1);
+  //delay(1); //no delay needed
   digitalWrite(_updatePin, LOW);
 }
 
@@ -332,28 +334,16 @@ void AD9914::disableProfileMode() {
 void AD9914::enableOSK() {
   //write 0x00, byte 8 high
   _OSKon = true;
-  byte registerInfo[] = {0x00, 4};
 
-  byte data[] = {0x00, 0x01, 0x01, 0x08}; //should the last byte be 0x00?
-  if (_AutoclearDRAccumulatorOn == true) {
-    data[2] = B01000001;
-  }
-
-  AD9914::writeRegister(registerInfo, data);
-  AD9914::update();
+  AD9914::updateRegister1();
 }
 
 //disable OSK
 void AD9914::disableOSK() {
   //write 0x00, byte 8 low
   _OSKon = false;
-  byte registerInfo[] = {0x00, 4};
-  byte data[] = {0x00, 0x01, 0x00, 0x08};
-  if (_AutoclearDRAccumulatorOn == true) {
-    data[2] = B01000000;
-  }
-  AD9914::writeRegister(registerInfo, data);
-  AD9914::update();
+
+  AD9914::updateRegister1();
 }
 
 //return boolean indicating if profile select mode is activated
@@ -417,7 +407,8 @@ void AD9914::setDRlowerLimit(double DRlowerLimit) { //should this take a double 
 
   // set DRlowerLimit variable
   unsigned long LLftw = round(DRlowerLimit * RESOLUTION / _refClk) ;
-  _DRlowerLimit = LLftw * _refClk / RESOLUTION;
+  double freqStep = _refClk / RESOLUTION;
+  _DRlowerLimit = LLftw * freqStep;
 
 
   // divide up ftw into four bytes
@@ -436,7 +427,7 @@ void AD9914::setDRlowerLimit(double DRlowerLimit) { //should this take a double 
 }
 
 //get digital ramp lower limit
-double AD9914::getDRlowerlimit() {
+double AD9914::getDRlowerLimit() {
   return _DRlowerLimit;
 }
 
@@ -444,9 +435,9 @@ double AD9914::getDRlowerlimit() {
 void AD9914::setDRupperLimit(double DRupperLimit) {
   // set DRupperLimit variable
   unsigned long ULftw = round(DRupperLimit * RESOLUTION / _refClk) ;
-  _DRupperLimit = ULftw * _refClk / RESOLUTION;
-
-
+  double freqStep = _refClk / RESOLUTION;
+  _DRupperLimit = ULftw * freqStep;
+ 
   // divide up ftw into four bytes
   byte ftw[] = { lowByte(ULftw >> 24), lowByte(ULftw >> 16), lowByte(ULftw >> 8), lowByte(ULftw)};
   // register info -- writing four bytes to register 0x05,
@@ -470,16 +461,14 @@ double AD9914::getDRupperLimit() {
 void AD9914::setDRincrementStepSize(double DRincrementSS){
    // set DRincrementStepSize variable
   unsigned long incSSftw = round(DRincrementSS * RESOLUTION / _refClk) ;
-  _DRincrementStepSize = incSSftw * _refClk / RESOLUTION;
-
-
+  double freqStep = _refClk / RESOLUTION;
+  _DRincrementStepSize = incSSftw * freqStep;
 
   // divide up ftw into four bytes
   byte ftw[] = { lowByte(incSSftw >> 24), lowByte(incSSftw >> 16), lowByte(incSSftw >> 8), lowByte(incSSftw)};
   // register info -- writing four bytes to register 0x06,
 
   byte registerInfo[] = {0x06, 4};
-
 
   // actually writes to register
   AD9914::writeRegister(registerInfo, ftw);
@@ -497,7 +486,8 @@ double AD9914::getDRincrementStepSize(){
 void AD9914::setDRdecrementStepSize(double DRdecrementSS){
    // set DRdecrementStepSize variable
   unsigned long decSSftw = round(DRdecrementSS * RESOLUTION / _refClk) ;
-  _DRdecrementStepSize = decSSftw * _refClk / RESOLUTION;
+  double freqStep = _refClk / RESOLUTION;
+  _DRdecrementStepSize = decSSftw * freqStep;
 
   // divide up ftw into four bytes
   byte ftw[] = { lowByte(decSSftw >> 24), lowByte(decSSftw >> 16), lowByte(decSSftw >> 8), lowByte(decSSftw)};
@@ -560,24 +550,18 @@ double AD9914::getDRnegativeSlopeRate(){
 }
 
 //configure digital ramp
-void AD9914::configureRamp(boolean AutoClearAccumulator, boolean DRGoverOutput, boolean noDwellHigh, boolean noDwellLow){
+void AD9914::configureRamp(boolean AutoClearAccumulator, boolean AutoclearPhase, boolean DRGoverOutput, boolean noDwellHigh, boolean noDwellLow){
   //set variables
   _AutoclearDRAccumulatorOn = AutoClearAccumulator;
+  _AutoclearPhaseOn = AutoclearPhase;
   _DRGoverOutputOn = DRGoverOutput;
   _DRnoDwellHighOn = noDwellHigh;
   _DRnoDwellLowOn = noDwellLow;
 
+  AD9914::updateRegister1();
   AD9914::updateRegister2();
   
-  byte registerInfo[] = {0x00, 4};
-  byte data[] = {0x00, 0x01, 0x00, 0x08}; 
-  if (AutoClearAccumulator == true) {
-    data[2] = data[2] | B01000000; //turn on 3rd byte, 2nd bit
-  }
-  if (_OSKon == true) {
-    data[2] = data[2] | B00000001; //turn on 3rd byte, last bit
-  }
-  AD9914::writeRegister(registerInfo, data);
+  
   AD9914::update();
 }
 
@@ -600,6 +584,27 @@ void AD9914::disableDR(){
 //get digital ramp mode status
 boolean AD9914::getDRmode(){
   return _DRon;
+}
+
+//get digital ramp settings:
+boolean AD9914::getAutoclearAccumulatorOn(){
+  return _AutoclearDRAccumulatorOn;
+}
+
+boolean AD9914::getAutoclearPhaseOn(){
+  return _AutoclearPhaseOn;
+}
+
+boolean AD9914::getDRGoverOutputOn(){
+  return _DRGoverOutputOn;
+}
+
+boolean AD9914::getDRnoDwellHighOn(){
+  return _DRnoDwellHighOn;
+}
+
+boolean AD9914::getDRnoDwellLowOn(){
+  return _DRnoDwellLowOn;
 }
 
 
@@ -630,7 +635,7 @@ void AD9914::dacCalibrate() {
   byte data[] = {0x01, 0x05, 0x21, 0x20}; //write bit high
   AD9914::writeRegister(registerInfo, data);
   AD9914::update();
-  delay(1);
+ // delay(1);
   data[0] = 0x00; //write bit low
   AD9914::writeRegister(registerInfo, data);
   AD9914::update();
@@ -651,10 +656,35 @@ void AD9914::writeAmp(long ampScaleFactor, byte profile) {
 
 }
 
+void AD9914::updateRegister1() {
+
+  byte registerInfo[] = {0x00, 4};
+  byte data[] = {0x00, 0x01, 0x00, 0x08}; //default values, 
+  //if we want to use cosine (instead of sine) output, 2nd byte should be 0x00
+  //if we just want to power down DAC, then we need to toggle between 0x00 and 0x40 in last byte
+  
+  
+
+  if (_AutoclearDRAccumulatorOn == true) {
+    data[2] = data[2] | B01000000; //turn on 3rd byte, 2nd bit
+  }
+  if (_AutoclearPhaseOn == true) {
+    data[2] = data[2] | B00100000;
+  }
+
+  if (_OSKon == true) {
+    data[2] = data[2] | B00000001; //turn on 3rd byte, last bit
+  }
+ 
+  AD9914::writeRegister(registerInfo, data);
+  AD9914::update();
+}
+
+
 void AD9914::updateRegister2() {
 
   byte registerInfo[] = {0x01, 4};
-  byte data[] = {0x00, 0x00, 0x09, 0x00}; //I'm not sure about the 0x09 default
+  byte data[] = {0x00, 0x00, 0x09, 0x00}; //default values
   if (_DRGoverOutputOn == true) {
     data[2] = B00101001;
   }
@@ -674,3 +704,16 @@ void AD9914::updateRegister2() {
   AD9914::writeRegister(registerInfo, data);
   AD9914::update();
 }
+
+void AD9914::enableDDS(){
+  _disable == false;
+  digitalWrite(_powerDownPin, LOW);
+  AD9914::dacCalibrate();
+}
+
+void AD9914::disableDDS(){
+  _disable == true;
+  digitalWrite(_powerDownPin, HIGH);
+  
+}
+ 
