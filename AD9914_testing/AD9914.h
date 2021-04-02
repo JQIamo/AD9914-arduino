@@ -193,9 +193,7 @@ class AD9914
 
         // function to write data to register. 
         void writeRegister(byte[2], byte[1024]);
-        
-        
-        
+              
         // write amplitude tuning word to device
         void writeAmp(long ampScaleFactor, byte profile);
 

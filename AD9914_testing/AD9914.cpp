@@ -81,6 +81,21 @@ void AD9914::initialize(unsigned long refClk) {
 
   _activeProfile = 0;
 
+  //initialize ramp values:
+ _DRlowerLimit = 0.0;
+ _DRupperLimit = 0.0;
+ _DRincrementStepSize = 0.0;
+ _DRdecrementStepSize = 0.0;
+ _DRpositiveSlopeRate = 0.0;
+ _DRnegativeSlopeRate = 0.0;
+ _AutoclearDRAccumulatorOn = false;
+ _AutoclearPhaseOn = false;
+ _DRGoverOutputOn = false; 
+ _DRon = false;
+ _DRnoDwellHighOn = false;
+ _DRnoDwellLowOn = false;
+ 
+
   //Disable the PLL - I think this is disabled by default, so comment it out for now
   //byte registerInfo[] = {0x02, 4};
   //byte data[] = {0x00, 0x00, 0x00, 0x00};
@@ -713,7 +728,7 @@ void AD9914::enableDDS(){
 
 void AD9914::disableDDS(){
   _disable == true;
-  digitalWrite(_powerDownPin, HIGH);
-  
+  digitalWrite(_powerDownPin, HIGH); 
 }
+
  
