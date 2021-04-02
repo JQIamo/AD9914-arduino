@@ -311,8 +311,7 @@ void setup() {
   sCmd.setDefaultHandler(unrecognizedCmd);
   
 
-  unsigned long  clockFreq = 3780000000; //PLL only tunable to the nearest 10 MHz 3.75 best (3.66 also good and a bunch of points spaced by 30 MHz)
-  //unsigned long  clockFreq = 3840000000;
+  unsigned long  clockFreq = 3600000000; //PLL only tunable to the nearest 10 MHz 3.75 best (3.66 also good and a bunch of points spaced by 30 MHz)
   
   PLL.initialize(clockFreq/1000000,10); //max PLL setting about 4.25 GHz
    
@@ -331,14 +330,14 @@ void setup() {
   boolean DRGoverOutput = true;
   boolean noDwellHigh = false;
   boolean noDwellLow = false;
-  double lowerFreq = 10e6;
-  double upperFreq = 1200e6;
+  double lowerFreq = 200e6;
+  double upperFreq = 650e6;
 
   
   //settings for larger combs:
   double RR = 24.0/clockFreq; //set to minimum value of 6.857 us, change this if clock changes
   double decrementSS = upperFreq-lowerFreq;
-  double fRamp = 10e6; //ramp rep. rate or comb tooth spacing
+  double fRamp = 0.2e6; //ramp rep. rate or comb tooth spacing
   double incrementSS = fRamp*(upperFreq - lowerFreq - fRamp )*RR; //subtract fRamp from total span to make sure we never quite get to the end of the ramp, which seems to cause problems
   double FRR = RR;
 
@@ -361,7 +360,7 @@ void setup() {
   DDS.setDRrampRate(RR, FRR); //set to minimum value
   DDS.enableDR();
 
-  double amp = 0.4 ; //0.22 for potassium spectroscopy, 0.4 for cavity stuff
+  double amp = 0.22 ; //0.22 for potassium spectroscopy
   DDS.enableOSK();
   for (int i = 0 ; i <= 7 ; i++) { //for now, set the amplitude of all profiles since the state of PS0 - PS1 is not being controlled
     DDS.setAmp(amp, i);

@@ -23,7 +23,7 @@ class AD9914
 {
     public: 
         // Constructor function. 
-        AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, byte ps2, byte osk);
+        AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, byte ps2, byte powerDownPin, byte DRholdPin);
 
         // Initialize with refClk frequency
         void initialize(unsigned long);
@@ -169,6 +169,9 @@ class AD9914
         // function to toggle the DAC CAL register bit and calibrate the DAC
         void dacCalibrate();
 
+        // get clock frequency
+        unsigned long getClock();
+
         
         
 
@@ -176,7 +179,7 @@ class AD9914
     private:
         // Instance variables that hold pinout mapping
         // from arduino to DDS pins.
-        byte _ssPin, _resetPin, _updatePin, _ps0, _ps1, _ps2, _powerDownPin;
+        byte _ssPin, _resetPin, _updatePin, _ps0, _ps1, _ps2, _powerDownPin, _DRholdPin;
 
         // Instance variables for frequency _freq, frequency tuning word _ftw,
         // reference clock frequency _refClk, etc.

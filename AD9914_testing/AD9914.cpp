@@ -24,7 +24,7 @@
 /* CONSTRUCTOR */
 
 // Constructor function; initializes communication pinouts
-AD9914::AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, byte ps2, byte powerDownPin) //Master_reset pin?
+AD9914::AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, byte ps2, byte powerDownPin, byte DRholdPin) //Master_reset pin?
 {
   RESOLUTION  = 4294967296.0;
   _ssPin = ssPin;
@@ -34,25 +34,28 @@ AD9914::AD9914(byte ssPin, byte resetPin, byte updatePin, byte ps0, byte ps1, by
   _ps1 = ps1;
   _ps2 = ps2;
   _powerDownPin = powerDownPin;
+  _DRholdPin = DRholdPin;
 
 
   // sets up the pinmodes for output
   pinMode(_ssPin, OUTPUT);
   pinMode(_resetPin, OUTPUT);
   pinMode(_updatePin, OUTPUT);
-  //pinMode(_ps0, OUTPUT); //temporarily comment out these lines since P205 jumper on eval board will have ot be enables to buffer DROVR signal
-  //pinMode(_ps1, OUTPUT);
- // pinMode(_ps2, OUTPUT);
+//  pinMode(_ps0, OUTPUT); //temporarily comment out these lines since P205 jumper on eval board will have ot be enables to buffer DROVR signal
+//  pinMode(_ps1, OUTPUT);
+//  pinMode(_ps2, OUTPUT);
   pinMode(_powerDownPin, OUTPUT);
+//  pinMode(_DRholdPin, OUTPUT);
 
   // defaults for pin logic levels
   digitalWrite(_ssPin, HIGH);
   digitalWrite(_resetPin, LOW);
   digitalWrite(_updatePin, LOW);
-  digitalWrite(_ps0, LOW);
-  digitalWrite(_ps1, LOW);
-  digitalWrite(_ps2, LOW);
+//  digitalWrite(_ps0, LOW);
+//  digitalWrite(_ps1, LOW);
+//  digitalWrite(_ps2, LOW);
   digitalWrite(_powerDownPin, LOW);
+ // digitalWrite(_DRholdPin, LOW);
 }
 
 /* PUBLIC CLASS FUNCTIONS */
@@ -731,4 +734,7 @@ void AD9914::disableDDS(){
   digitalWrite(_powerDownPin, HIGH); 
 }
 
+unsigned long AD9914::getClock(){
+  return _refClk;
+}
  

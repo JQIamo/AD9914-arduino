@@ -27,7 +27,7 @@
 
 
 //Declare the DDS object:
-AD9914 DDS(CSPIN, RESETPIN, IO_UPDATEPIN, PS0PIN, PS1PIN, PS2PIN, EXTPDCTLPIN, DRHOLDPIN);
+AD9914 DDS(CSPIN, RESETPIN, IO_UPDATEPIN, PS0PIN, PS1PIN, PS2PIN, EXTPDCTLPIN);
 
 //Declare the PLL object:
 ADF4350 PLL(PLL_CS_PIN);
@@ -150,11 +150,7 @@ void setAmplitude(){
   
   DDS.enableOSK();
 
-  for (int i = 0 ; i <= 7 ; i++) { //for now, set the amplitude of all profiles since the state of PS0 - PS1 is not being controlled
-    DDS.setAmp(amp, i);
-  }
-
- // DDS.setAmp(amp);
+  DDS.setAmp(amp);
   char lineToDisplay[50];
   snprintf(lineToDisplay,50, "Amplitude: %f", amp);
   Serial.println(lineToDisplay);
@@ -163,9 +159,6 @@ void setAmplitude(){
 
 void configureDR(){
   char *arg;
-
-  arg = sCmd.next();
-  boolean rampOn = (atoi(arg) == 1);
 
   arg = sCmd.next();
   boolean autoClearAccum = (atoi(arg) == 1);
@@ -182,9 +175,6 @@ void configureDR(){
   arg = sCmd.next();
   boolean noDwellLow = (atoi(arg) == 1);
 
-  
-  Serial.print("Digital Ramp Enable: ");
-  Serial.println(rampOn);
   Serial.print("Autoclear Accumulator: ");
   Serial.println(autoClearAccum);
   Serial.print("Autoclear Phase: ");
@@ -195,16 +185,9 @@ void configureDR(){
   Serial.println(noDwellHigh);
   Serial.print("No Dwell Low: ");
   Serial.println(noDwellLow);
- 
 
   
   DDS.configureRamp(autoClearAccum, autoClearPhase, DRover, noDwellHigh, noDwellLow);
-  if (rampOn){
-    DDS.enableDR();
-  }
-  else{
-    DDS.disableDR();
-  }
 }
 
 void calibrateDAC(){
@@ -262,20 +245,8 @@ void printDRSettings(){
   Serial.println(lineToDisplay); 
   snprintf(lineToDisplay,50, "(FRR) DR Falling Ramp Rate: %9.9f us", DDS.getDRnegativeSlopeRate()*1e6);
   Serial.println(lineToDisplay); 
-  snprintf(lineToDisplay,50, "DDS Clock Frequency: %9.9f MHz", DDS.getClock()/1.0e6);
-  Serial.println(lineToDisplay); 
   Serial.println("-----------------------------------------------");
-}
 
-void toggleRamp(){
-  if (DDS.getDRmode() == true){
-    DDS.disableDR();
-    Serial.println("Ramp Off");
-  } else { 
-    DDS.enableDR();
-    Serial.println("Ramp On");
-    
-  }
 }
 
 void unrecognizedCmd(const char *command) {
@@ -305,20 +276,15 @@ void setup() {
   sCmd.addCommand("cal", calibrateDAC);
   sCmd.addCommand("DR?", printDRSettings);
   sCmd.addCommand("clock", setClk);
-  sCmd.addCommand("R", toggleRamp);
   
   
   sCmd.setDefaultHandler(unrecognizedCmd);
   
 
-  unsigned long  clockFreq = 3780000000; //PLL only tunable to the nearest 10 MHz 3.75 best (3.66 also good and a bunch of points spaced by 30 MHz)
-  //unsigned long  clockFreq = 3840000000;
+  unsigned long  clockFreq = 3500000000;
   
-  PLL.initialize(clockFreq/1000000,10); //max PLL setting about 4.25 GHz
-   
-  PLL.setRfPower(3); //nominally 3 dBm, actually about -0.7 dBm, set to 3 for a little more power
-  //PLL.auxEnable(true); //turn on auxiliary output
-  //PLL.setAuxPower(3); 
+  PLL.initialize(clockFreq/1000000,10); //max PLL setting may be 3 GHz...
+  
   delay(10);
   
   DDS.initialize(clockFreq);
@@ -326,49 +292,28 @@ void setup() {
   //DDS.enableOSK();
   delay(100);
 
-  boolean AutoClearAccumulator = true;
-  boolean AutoClearPhase = true;
-  boolean DRGoverOutput = true;
-  boolean noDwellHigh = false;
-  boolean noDwellLow = false;
-  double lowerFreq = 10e6;
-  double upperFreq = 1200e6;
+  boolean AutoClearAccumulator = false;
+  boolean AutoClearPhase = false;
+  boolean DRGoverOutput = false;
+  boolean noDwellHigh = true;
+  boolean noDwellLow = true;
+  double lowerFreq = 1e6;
+  double upperFreq = 10e6;
 
-  
-  //settings for larger combs:
   double RR = 24.0/clockFreq; //set to minimum value of 6.857 us, change this if clock changes
   double decrementSS = upperFreq-lowerFreq;
-  double fRamp = 10e6; //ramp rep. rate or comb tooth spacing
-  double incrementSS = fRamp*(upperFreq - lowerFreq - fRamp )*RR; //subtract fRamp from total span to make sure we never quite get to the end of the ramp, which seems to cause problems
-  double FRR = RR;
-
+  double fRamp = 100e3; //ramp rep. rate or comb tooth spacing
+  double incrementSS = fRamp*(upperFreq - lowerFreq)*RR;
   
 
-  //settings for spectroscopy: (use with 3.692 GHz clock, (SRS) or 3.75 GHz clock (PLL) )
-  //lowerFreq = 461.71e6;
-  //upperFreq = 461.75e6;
-  //RR = 24.0/clockFreq; //set to minimum value of 6.857 us, change this if clock changes
-  //decrementSS = upperFreq-lowerFreq;
-  //incrementSS = 0.000001e6;
-  //FRR = 0.22e-6;
-  
   
   DDS.configureRamp(AutoClearAccumulator, AutoClearPhase, DRGoverOutput, noDwellHigh, noDwellLow);
   DDS.setDRlowerLimit(lowerFreq);
   DDS.setDRupperLimit(upperFreq);
   DDS.setDRincrementStepSize(incrementSS);
   DDS.setDRdecrementStepSize(decrementSS);
-  DDS.setDRrampRate(RR, FRR); //set to minimum value
+  DDS.setDRrampRate(RR, RR); //set to minimum value
   DDS.enableDR();
-
-  double amp = 0.4 ; //0.22 for potassium spectroscopy, 0.4 for cavity stuff
-  DDS.enableOSK();
-  for (int i = 0 ; i <= 7 ; i++) { //for now, set the amplitude of all profiles since the state of PS0 - PS1 is not being controlled
-    DDS.setAmp(amp, i);
-  }
-  
- // DDS.enableOSK();
- //DDS.setAmp(.55);
 
 
 }
@@ -376,7 +321,6 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   sCmd.readSerial();
-  
   
 // for (int i = 0 ; i < maxFreqs ; i++) {
 //   DDS.selectProfile(i);
@@ -390,6 +334,5 @@ void loop() {
 
 
  delay(100);
-// DDS.dacCalibrate(); //this doesn't appear to be helpful
 
 }
